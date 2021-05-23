@@ -8,20 +8,18 @@ width,columns,rows = 300,15,30
 distance = width // columns #chiều dài 1 ô
 height = distance * rows
 grid = [0]*columns*rows #lưới chứa hình tetroromino
-speed = 500
+speed,score,level,temp = 400,0,1,0
 #load hình
 picture = []
 for n in range(8):
     picture.append(pygame.transform.scale(pygame.image.load(f'T_{n}.gif'),(distance,distance)))
 screen = pygame.display.set_mode([width,height])
 pygame.display.set_caption('Game xếp hình')
-#tạo các sự kiện rơi xuống
+#tạo các sự kiện
 tetroromino_down = pygame.USEREVENT + 1
 pygame.time.set_timer(tetroromino_down,speed)
-speedup = pygame.USEREVENT +2
-pygame.time.set_timer(speedup,5000)
-pygame.key.set_repeat(1,300) #độ nhạy nút
-
+#gameover = pygame.USEREVENT +3
+#textfinish = pygame.font.SysFont("comicsansms", 40).render("Game Over!",True,(255, 255, 255))
 #tetroromino của các chữ cái O,I,J,L,S,Z,T
 tetrorominos =[[0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], #O
                [0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0], #I
@@ -62,6 +60,26 @@ class tetroromino():
             self.tetro[(2-(n % 4))*4+(n // 4)] = color
         if not self.check(self.row,self.column):
             self.tetro = savetetro.copy()
+    def gameover():
+	    for column in range(columns):			
+		    if (grid[column]) > 0:
+			    screen.fill((0,0,0))		
+			    screen.blit(textfinish,(width//2 - text.get_width()//2,80))    
+def ObjectOnGridline():
+    for n, color in enumerate(character.tetro):
+        if color > 0:
+            grid[(character.row + n // 4)*columns+(character.column + n % 4)] = color
+def deleteRow():
+    fullrows = 0
+    for row in range(rows):
+        for column in range(columns):
+            if grid[row*columns+column] == 0: # in ra một cột có 30 số 0 ???#kiểm tra nếu dòng nào có ô rỗng thì bỏ qua
+                break
+        else:
+            del grid[row*columns:row*columns+columns]
+            grid[0:0] = [0]*columns  # trả về []
+            fullrows += 1
+    return fullrows**2*100 #xóa 1 dòng đc 100đ,xóa n dòng cùng lúc đc n^2*100đ
 character = tetroromino(random.choice(tetrorominos))
 running = True
 while running:
@@ -69,10 +87,15 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == tetroromino_down:
-            character.update(1,0)
-        if event.type == speedup: #sự kiện time tăng dần
-            speed = int(speed * 0.8)
-            pygame.time.set_timer(tetroromino_down,speed)
+            if not character.update(1,0):
+                ObjectOnGridline()
+                score += deleteRow()
+                if score>0 and score//500 >= level and temp != score:
+                    speed = int(speed * 0.5)
+                    pygame.time.set_timer(tetroromino_down,speed)
+                    level = score//500 +1
+                    temp = score 
+                character = tetroromino(random.choice(tetrorominos))
         if event.type == pygame.KEYDOWN: #sự kiện bấm nút
             if event.key == pygame.K_a:
                 character.update(0,-1)
@@ -84,10 +107,15 @@ while running:
                 character.turn()
     screen.fill((160,160,160))
     character.show()
-    for n,color in enumerate(grid):
+    text = pygame.font.SysFont('Time new roman',40).render(f'{score:,}',False,(255, 255, 255)) #in ra màn hình điểm
+    screen.blit(text,(width//2- text.get_width()//2,5)) #vị trí của điểm
+    text = pygame.font.SysFont('Time new roman',40).render(f'Level:{level:,}',False,(255, 255, 255)) #Level
+    screen.blit(text,(width//2- text.get_width()//2,40)) #vị trí level
+    
+    for n,color in enumerate(grid): #duyệt từ ô trong lưới nếu có màu thì tính tọa độ
         if color > 0:
-            x= n%column*distance
-            y= n//column*distance
+            x= n%columns*distance
+            y= n//columns*distance
             screen.blit(picture[color],(x,y))
     pygame.display.update()
 pygame.quit()
